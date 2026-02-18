@@ -31,55 +31,78 @@ class PlatformProvider extends OrchidServiceProvider
      *
      * @return Menu[]
      */
-    public function menu(): array
+        public function menu(): array
     {
         return [
+            // Главная
             Menu::make('Get Started')
                 ->icon('bs.book')
-                ->title('Navigation')
+                ->title('Навигация')
                 ->route(config('platform.index')),
 
-            Menu::make('Sample Screen')
+            // Раздел с примерами (можно удалить или оставить)
+            Menu::make('Примеры')
                 ->icon('bs.collection')
-                ->route('platform.example')
-                ->badge(fn () => 6),
+                ->list([
+                    Menu::make('Sample Screen')
+                        ->icon('bs.collection')
+                        ->route('platform.example')
+                        ->badge(fn () => 6),
 
-            Menu::make('Form Elements')
-                ->icon('bs.card-list')
-                ->route('platform.example.fields')
-                ->active('*/examples/form/*'),
+                    Menu::make('Form Elements')
+                        ->icon('bs.card-list')
+                        ->route('platform.example.fields')
+                        ->active('*/examples/form/*'),
 
-            Menu::make('Layouts Overview')
-                ->icon('bs.window-sidebar')
-                ->route('platform.example.layouts'),
+                    Menu::make('Layouts Overview')
+                        ->icon('bs.window-sidebar')
+                        ->route('platform.example.layouts'),
 
-            Menu::make('Grid System')
-                ->icon('bs.columns-gap')
-                ->route('platform.example.grid'),
+                    Menu::make('Grid System')
+                        ->icon('bs.columns-gap')
+                        ->route('platform.example.grid'),
 
-            Menu::make('Charts')
-                ->icon('bs.bar-chart')
-                ->route('platform.example.charts'),
+                    Menu::make('Charts')
+                        ->icon('bs.bar-chart')
+                        ->route('platform.example.charts'),
 
-            Menu::make('Cards')
-                ->icon('bs.card-text')
-                ->route('platform.example.cards')
-                ->divider(),
+                    Menu::make('Cards')
+                        ->icon('bs.card-text')
+                        ->route('platform.example.cards'),
+                ]),
 
-            Menu::make(__('Users'))
+            // === ВАЖНО: ТВОЙ КАТАЛОГ ===
+            Menu::make('Управление магазином')
+                ->icon('bs.shop')
+                ->title('Каталог товаров')
+                ->list([
+                    Menu::make('Категории')
+                        ->icon('bs.folder')
+                        ->route('platform.categories')
+                        ->permission('platform.systems.users'),
+
+                    Menu::make('Товары')
+                        ->icon('bs.box')
+                        ->route('platform.products')
+                        ->permission('platform.systems.users'),
+                ]),
+
+            // Системные настройки
+            Menu::make(__('Пользователи'))
                 ->icon('bs.people')
                 ->route('platform.systems.users')
                 ->permission('platform.systems.users')
-                ->title(__('Access Controls')),
+                ->title(__('Управление доступом')),
 
-            Menu::make(__('Roles'))
+            Menu::make(__('Роли'))
                 ->icon('bs.shield')
                 ->route('platform.systems.roles')
                 ->permission('platform.systems.roles')
                 ->divider(),
 
-            Menu::make('Documentation')
-                ->title('Docs')
+            // Документация
+            Menu::make('Документация')
+                ->title('Справка')
                 ->icon('bs.box-arrow-up-right')
                 ->url('https://orchid.software/en/docs')
                 ->target('_blank'),

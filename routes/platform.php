@@ -102,3 +102,40 @@ Route::screen('/examples/charts', ExampleChartsScreen::class)->name('platform.ex
 Route::screen('/examples/cards', ExampleCardsScreen::class)->name('platform.example.cards');
 
 // Route::screen('idea', Idea::class, 'platform.screens.idea');
+
+// Категории
+Route::screen('products', \App\Orchid\Screens\Product\ProductScreen::class)
+    ->name('platform.products')
+    ->breadcrumbs(function ($trail) {
+        return $trail->parent('platform.index')->push('Товары');
+    });
+
+Route::screen('products/create', \App\Orchid\Screens\Product\ProductEditScreen::class)
+    ->name('platform.products.create')
+    ->breadcrumbs(function ($trail) {
+        return $trail->parent('platform.products')->push('Создать товар');
+    });
+
+Route::screen('products/{product}/edit', \App\Orchid\Screens\Product\ProductEditScreen::class)
+    ->name('platform.products.edit')
+    ->breadcrumbs(function ($trail, $product) {
+        return $trail->parent('platform.products')->push('Редактировать');
+    });
+
+    Route::screen('categories', \App\Orchid\Screens\Category\CategoryScreen::class)
+    ->name('platform.categories')
+    ->breadcrumbs(function ($trail) {
+        return $trail->parent('platform.index')->push('Категории');
+    });
+
+Route::screen('categories/create', \App\Orchid\Screens\Category\CategoryEditScreen::class)
+    ->name('platform.categories.create')
+    ->breadcrumbs(function ($trail) {
+        return $trail->parent('platform.categories')->push('Создать категорию');
+    });
+
+Route::screen('categories/{category}/edit', \App\Orchid\Screens\Category\CategoryEditScreen::class)
+    ->name('platform.categories.edit')
+    ->breadcrumbs(function ($trail, $category) {
+        return $trail->parent('platform.categories')->push('Редактировать');
+    });
