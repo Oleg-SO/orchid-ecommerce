@@ -8,23 +8,32 @@ use Illuminate\Http\Request;
 
 class CatalogController extends Controller
 {
-    /**
-     * Главная страница каталога со всеми товарами
-     */
-    public function index()
+      public function index()
     {
-        $products = Product::with('categories')
+        // Получаем последние 4 товара
+        $latestProducts = Product::with('categories')
             ->where('active', true)
-            ->paginate(12);
-            
-        $categories = Category::where('active', true)
-            ->defaultOrder()
-            ->withDepth()
+            ->latest()
+            ->take(10)
             ->get();
-            
-        return view('catalog.index', compact('products', 'categories'));
+
+        // Получаем популярные категории (первые 4)
+        $popularCategories = Category::where('active', true)
+            ->withCount('products')
+            ->having('products_count', '>', 0)
+            ->take(4)
+            ->get();
+
+        // Если нет категорий с товарами, покажем первые 4 категории
+        if ($popularCategories->isEmpty()) {
+            $popularCategories = Category::where('active', true)
+                ->take(4)
+                ->get();
+        }
+
+        return view('catalog', compact('latestProducts', 'popularCategories'));
     }
-    
+
     /**
      * Страница конкретной категории
      */
@@ -33,19 +42,19 @@ class CatalogController extends Controller
         $category = Category::where('slug', $slug)
             ->where('active', true)
             ->firstOrFail();
-            
+
         $products = $category->products()
             ->where('active', true)
             ->paginate(12);
-            
+
         $categories = Category::where('active', true)
             ->defaultOrder()
             ->withDepth()
             ->get();
-            
+
         return view('catalog.category', compact('category', 'products', 'categories'));
     }
-    
+
     /**
      * Страница конкретного товара
      */
@@ -55,7 +64,7 @@ class CatalogController extends Controller
             ->where('active', true)
             ->with('categories')
             ->firstOrFail();
-            
+
         // Похожие товары из тех же категорий
         $relatedProducts = Product::whereHas('categories', function($query) use ($product) {
             $query->whereIn('categories.id', $product->categories->pluck('id'));
@@ -64,7 +73,7 @@ class CatalogController extends Controller
         ->where('active', true)
         ->limit(4)
         ->get();
-            
+
         return view('catalog.show', compact('product', 'relatedProducts'));
     }
 }

@@ -64,14 +64,14 @@ class ProductScreen extends Screen
     public function remove($id)
     {
         $product = Product::find($id);
-        
+
         if ($product) {
             $product->delete();
             Alert::info('Товар успешно удален');
         } else {
             Alert::warning('Товар не найден');
         }
-        
+
         return redirect()->route('platform.products');
     }
 }

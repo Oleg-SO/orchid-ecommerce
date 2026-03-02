@@ -8,48 +8,105 @@ use Illuminate\Http\Request;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Screen;
 use Orchid\Support\Facades\Alert;
+use Orchid\Attachment\Models\Attachment;
 
 class CategoryEditScreen extends Screen
 {
     public $category;
-    public $name = 'Создание категории';
 
-    public function query(Category $category): array
+    public function query(Category $category): iterable
     {
         $this->category = $category;
-        if ($category->exists) {
-            $this->name = 'Редактирование: ' . $category->name;
-        }
-        return ['category' => $category];
-    }
 
-    public function commandBar(): array
-    {
         return [
-            Button::make('Сохранить')->method('save')->icon('bs.save'),
-            Button::make('Удалить')->method('remove')->icon('bs.trash')->canSee($this->category->exists),
+            'category' => $category
         ];
     }
 
-    public function layout(): array
+    public function name(): ?string
     {
-        return [CategoryEditLayout::class];
+        return $this->category->exists
+            ? 'Редактирование: ' . $this->category->name
+            : 'Создание новой категории';
+    }
+
+    public function description(): ?string
+    {
+        return $this->category->exists
+            ? 'Изменение параметров категории'
+            : 'Добавление новой категории в каталог';
+    }
+
+    public function commandBar(): iterable
+    {
+        return [
+            Button::make('Сохранить')
+                ->icon('bs.save')
+                ->method('save'),
+
+            Button::make('Удалить')
+                ->icon('bs.trash')
+                ->method('remove')
+                ->canSee($this->category->exists),
+        ];
+    }
+
+    public function layout(): iterable
+    {
+        return [
+            CategoryEditLayout::class
+        ];
     }
 
     public function save(Request $request, Category $category)
     {
+        $request->validate([
+            'category.name' => 'required|string|max:255',
+            'category.slug' => 'required|string|max:255|unique:categories,slug,' . $category->id,
+        ]);
+
         $data = $request->get('category');
-        if (empty($data['parent_id'])) $data['parent_id'] = null;
-        
+
+        // ВАЖНО: Правильная обработка active
+        $data['active'] = isset($data['active']) && in_array($data['active'], ['value', 'on', '1', 1, true], true);
+
+        // Обработка parent_id
+        if (empty($data['parent_id'])) {
+            $data['parent_id'] = null;
+        }
+
         $category->fill($data)->save();
-        Alert::info('Сохранено');
+
+        // Обработка фото
+        if ($request->has('category.attachment') && is_array($request->input('category.attachment'))) {
+            $attachmentIds = $request->input('category.attachment', []);
+
+            foreach ($attachmentIds as $attachmentId) {
+                Attachment::where('id', $attachmentId)
+                    ->update([
+                        'attachmentable_id' => $category->id,
+                        'attachmentable_type' => Category::class,
+                    ]);
+            }
+
+            $category->attachment()->sync($attachmentIds);
+        }
+
+        Alert::info('Категория успешно сохранена');
+
         return redirect()->route('platform.categories');
     }
 
     public function remove(Category $category)
     {
+        foreach ($category->attachment as $attachment) {
+            $attachment->delete();
+        }
+
         $category->delete();
-        Alert::info('Удалено');
+
+        Alert::info('Категория успешно удалена');
+
         return redirect()->route('platform.categories');
     }
 }

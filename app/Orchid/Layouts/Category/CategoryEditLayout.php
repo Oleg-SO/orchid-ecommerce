@@ -39,7 +39,8 @@ class CategoryEditLayout extends Rows
             CheckBox::make('category.active')
                 ->title('Активна')
                 ->placeholder('Показывать на сайте')
-                ->value(true),
+                ->value(true)
+                ->sendTrueOrFalse(),
         ];
     }
 }

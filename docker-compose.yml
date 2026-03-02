@@ -1,0 +1,65 @@
+services:
+  php:
+    build:
+        context: .
+        dockerfile: docker/php/Dockerfile
+    container_name: ecommerce_php
+    volumes:
+        - ./:/var/www/html
+        - ./docker/php/php.ini:/usr/local/etc/php/php.ini
+    networks:
+        - ecommerce-network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: ecommerce_nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - php
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: ecommerce_mysql
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ecommerce
+      MYSQL_USER: ecommerce_user
+      MYSQL_PASSWORD: secret
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - ecommerce-network
+    command: --default-authentication-plugin=mysql_native_password
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: ecommerce_phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: root
+    depends_on:
+      - mysql
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+
+networks:
+  ecommerce-network:
+    driver: bridge

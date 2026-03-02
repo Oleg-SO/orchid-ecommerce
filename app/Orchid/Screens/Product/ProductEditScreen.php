@@ -19,7 +19,7 @@ class ProductEditScreen extends Screen
     public function query(Product $product): iterable
     {
         $this->product = $product;
-        
+
         return [
             'product' => $product
         ];
@@ -30,8 +30,8 @@ class ProductEditScreen extends Screen
      */
     public function name(): ?string
     {
-        return $this->product->exists 
-            ? 'Редактирование: ' . $this->product->name 
+        return $this->product->exists
+            ? 'Редактирование: ' . $this->product->name
             : 'Создание нового товара';
     }
 
@@ -54,7 +54,7 @@ class ProductEditScreen extends Screen
             Button::make('Сохранить')
                 ->icon('bs.save')
                 ->method('save'),
-            
+
             Button::make('Удалить')
                 ->icon('bs.trash')
                 ->method('remove')
@@ -84,38 +84,38 @@ class ProductEditScreen extends Screen
         ]);
 
         $data = $request->get('product');
-        
+
         // Обработка активного поля
         if (isset($data['active'])) {
             $data['active'] = in_array($data['active'], ['value', 'on', 'true', '1', 1, true], true);
         } else {
             $data['active'] = false;
         }
-        
+
         // Обработка цены
         if (empty($data['old_price'])) {
             $data['old_price'] = null;
         }
-        
+
         $data['quantity'] = (int) ($data['quantity'] ?? 0);
-        
+
         // Сохраняем товар
         $product->fill($data)->save();
-        
+
         // ВАЖНО: Прикрепляем загруженные изображения
         if ($request->has('product.attachment') && is_array($request->input('product.attachment'))) {
             $product->attachment()->syncWithoutDetaching(
                 $request->input('product.attachment', [])
             );
         }
-        
+
         // Синхронизация категорий
         if (isset($data['categories']) && is_array($data['categories'])) {
             $product->categories()->sync($data['categories']);
         }
 
         Alert::info('Товар успешно сохранен');
-        
+
         return redirect()->route('platform.products');
     }
 
@@ -125,9 +125,9 @@ class ProductEditScreen extends Screen
     public function remove(Product $product)
     {
         $product->delete();
-        
+
         Alert::info('Товар успешно удален');
-        
+
         return redirect()->route('platform.products');
     }
 }

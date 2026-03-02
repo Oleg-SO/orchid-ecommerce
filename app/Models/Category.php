@@ -30,6 +30,12 @@ class Category extends Model
         'created_at'
     ];
 
+    protected $casts = [
+        'active' => 'boolean',
+        '_lft' => 'integer',
+        '_rgt' => 'integer',
+    ];
+
     public function products()
     {
         return $this->belongsToMany(Product::class);
