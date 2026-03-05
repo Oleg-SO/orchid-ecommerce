@@ -16,7 +16,7 @@
             <div class="footer-col">
                 <h4>Каталог</h4>
                 <ul>
-                    @foreach($popularCategories->take(4) ?? [] as $category)
+                    @foreach($popularCategories ?? [] as $category)
                         <li><a href="/catalog/category/{{ $category->slug }}">{{ $category->name }}</a></li>
                     @endforeach
                 </ul>

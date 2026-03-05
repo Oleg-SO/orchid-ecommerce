@@ -9,11 +9,11 @@
             </div>
 
             <div class="nav-links" id="navLinks">
-                <a href="#" class="active"><i class="fas fa-home"></i> Главная</a>
+                <a href="/" class="active"><i class="fas fa-home"></i> Главная</a>
                 <a href="catalog"><i class="fas fa-th-large"></i> Каталог</a>
-                <a href="#"><i class="fas fa-tag"></i> Акции</a>
-                <a href="#"><i class="fas fa-info-circle"></i> О нас</a>
-                <a href="#"><i class="fas fa-phone"></i> Контакты</a>
+                <a href="delivery"><i class="fas fa-tag"></i> Доставка</a>
+                <a href="about"><i class="fas fa-info-circle"></i> О нас</a>
+                <a href="contacts"><i class="fas fa-phone"></i> Контакты</a>
             </div>
 
             <div class="nav-actions">
