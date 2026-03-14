@@ -34,5 +34,6 @@
         <script src="{{ asset('js/main.js') }}"></script>
         <script src="{{ asset('js/catalog.js') }}"></script>
         <script src="{{ asset('js/about.js') }}"></script>
+        <script src="{{ asset('js/contacts.js') }}"></script>
     </body>
 </html>
