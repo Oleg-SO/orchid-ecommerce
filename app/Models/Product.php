@@ -301,4 +301,4 @@ class Product extends Model
     {
         return $this->hasMany(Specification::class)->orderBy('sort_order');
     }
-}
+    }

@@ -19,6 +19,9 @@ use App\Orchid\Screens\User\UserListScreen;
 use App\Orchid\Screens\User\UserProfileScreen;
 use Illuminate\Support\Facades\Route;
 use Tabuna\Breadcrumbs\Trail;
+use App\Orchid\Screens\ImportExportScreen;
+use App\Orchid\Screens\ImportProductsScreen;
+use App\Orchid\Screens\ExportProductsScreen;
 
 /*
 |--------------------------------------------------------------------------
@@ -139,3 +142,11 @@ Route::screen('categories/{category}/edit', \App\Orchid\Screens\Category\Categor
     ->breadcrumbs(function ($trail, $category) {
         return $trail->parent('platform.categories')->push('Редактировать');
     });
+
+Route::screen('import', ImportProductsScreen::class)
+    ->name('platform.import')
+    ->breadcrumbs(fn ($trail) => $trail->parent('platform.index')->push('Импорт товаров'));
+
+Route::screen('export', ExportProductsScreen::class)
+    ->name('platform.export')
+    ->breadcrumbs(fn ($trail) => $trail->parent('platform.index')->push('Экспорт товаров'));

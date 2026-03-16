@@ -71,7 +71,7 @@ class PlatformProvider extends OrchidServiceProvider
                         ->route('platform.example.cards'),
                 ]),
 
-            // === ВАЖНО: ТВОЙ КАТАЛОГ ===
+            // === КАТАЛОГ ===
             Menu::make('Управление магазином')
                 ->icon('bs.shop')
                 ->title('Каталог товаров')
@@ -112,6 +112,21 @@ class PlatformProvider extends OrchidServiceProvider
                 ->url('https://github.com/orchidsoftware/platform/blob/master/CHANGELOG.md')
                 ->target('_blank')
                 ->badge(fn () => Dashboard::version(), Color::DARK),
+
+            Menu::make('Импорт/экспорт')
+                ->icon('bs.arrow-repeat')
+                ->title('Управление данными')
+                ->list([
+                    Menu::make('Импорт товаров')
+                        ->icon('bs.upload')
+                        ->route('platform.import')
+                        ->permission('platform.systems.users'),
+
+                    Menu::make('Экспорт товаров')
+                        ->icon('bs.download')
+                        ->route('platform.export')
+                        ->permission('platform.systems.users'),
+                ]),
         ];
     }
 
