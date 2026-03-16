@@ -29,86 +29,45 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Слайдер товаров
+   // Слайдер товаров (динамический)
     const sliderTrack = document.querySelector('.slider-track');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
 
     if (sliderTrack && prevBtn && nextBtn) {
-        // Заполняем слайдер товарами
-        const products = [
-            {
-                img: 'https://via.placeholder.com/260x180/0067c0/ffffff?text=Перфоратор',
-                title: 'Перфоратор BOSCH GBH 2-28',
-                price: '12 490 ₽',
-                rating: 4.8,
-                reviews: 124
-            },
-            {
-                img: 'https://via.placeholder.com/260x180/d83b01/ffffff?text=Шуруповерт',
-                title: 'Шуруповерт Makita DF457D',
-                price: '8 990 ₽',
-                rating: 4.9,
-                reviews: 89
-            },
-            {
-                img: 'https://via.placeholder.com/260x180/107c10/ffffff?text=Уровень',
-                title: 'Лазерный уровень DeWalt',
-                price: '15 900 ₽',
-                rating: 4.7,
-                reviews: 56
-            },
-            {
-                img: 'https://via.placeholder.com/260x180/c30052/ffffff?text=Болгарка',
-                title: 'УШМ Metabo WEV 15-125',
-                price: '11 200 ₽',
-                rating: 4.8,
-                reviews: 73
-            },
-            {
-                img: 'https://via.placeholder.com/260x180/ff8c00/ffffff?text=Пила',
-                title: 'Торцовочная пила Hitachi',
-                price: '24 800 ₽',
-                rating: 4.6,
-                reviews: 42
-            }
-        ];
+        // Получаем все карточки товаров
+        const productCards = document.querySelectorAll('.product-card');
+        const totalProducts = productCards.length;
 
-        sliderTrack.innerHTML = products.map(product => `
-            <div class="product-card">
-                <img src="${product.img}" alt="${product.title}">
-                <div class="product-title">${product.title}</div>
-                <div class="product-price">${product.price}</div>
-                <div class="product-rating">
-                    ${'<i class="fas fa-star"></i>'.repeat(Math.floor(product.rating))}
-                    ${product.rating % 1 ? '<i class="fas fa-star-half-alt"></i>' : ''}
-                    <span>(${product.reviews})</span>
-                </div>
-                <button class="btn-add"><i class="fas fa-cart-plus"></i> В корзину</button>
-            </div>
-        `).join('');
+        if (totalProducts > 0) {
+            let currentPosition = 0;
+            const cardWidth = 280; // ширина карточки + gap
+            const maxPosition = -(totalProducts * cardWidth - sliderTrack.parentElement.offsetWidth);
 
-        let currentPosition = 0;
-        const cardWidth = 280; // ширина карточки + gap
-        const maxPosition = -(products.length * cardWidth - sliderTrack.parentElement.offsetWidth);
+            // Обновляем maxPosition при изменении размера окна
+            const updateMaxPosition = () => {
+                return -(totalProducts * cardWidth - sliderTrack.parentElement.offsetWidth);
+            };
 
-        nextBtn.addEventListener('click', () => {
-            currentPosition = Math.max(currentPosition - cardWidth, maxPosition);
-            sliderTrack.style.transform = `translateX(${currentPosition}px)`;
-        });
-
-        prevBtn.addEventListener('click', () => {
-            currentPosition = Math.min(currentPosition + cardWidth, 0);
-            sliderTrack.style.transform = `translateX(${currentPosition}px)`;
-        });
-
-        window.addEventListener('resize', () => {
-            const newMax = -(products.length * cardWidth - sliderTrack.parentElement.offsetWidth);
-            if (currentPosition < newMax) {
-                currentPosition = newMax;
+            nextBtn.addEventListener('click', () => {
+                const newMax = updateMaxPosition();
+                currentPosition = Math.max(currentPosition - cardWidth, newMax);
                 sliderTrack.style.transform = `translateX(${currentPosition}px)`;
-            }
-        });
+            });
+
+            prevBtn.addEventListener('click', () => {
+                currentPosition = Math.min(currentPosition + cardWidth, 0);
+                sliderTrack.style.transform = `translateX(${currentPosition}px)`;
+            });
+
+            window.addEventListener('resize', () => {
+                const newMax = updateMaxPosition();
+                if (currentPosition < newMax) {
+                    currentPosition = newMax;
+                    sliderTrack.style.transform = `translateX(${currentPosition}px)`;
+                }
+            });
+        }
     }
 
     // Аккордеон для FAQ

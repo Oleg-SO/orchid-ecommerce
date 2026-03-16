@@ -163,7 +163,7 @@
         </div>
     </section>
 
-    {{-- Хиты продаж (слайдер) - ОСТАВЛЯЕМ --}}
+    {{-- Хиты продаж (слайдер) --}}
     <section class="featured-section">
         <div class="win-container">
             <div class="section-header">
@@ -176,7 +176,35 @@
 
             <div class="products-slider" id="productsSlider">
                 <div class="slider-track">
-                    <!-- Карточки товаров будут добавлены через JS -->
+                    @foreach($hitProducts as $product)
+                        <div class="product-card">
+                            @php $productImage = $product->attachment()->first(); @endphp
+                            @if($productImage)
+                                <img src="{{ $productImage->url() }}" alt="{{ $product->name }}">
+                            @else
+                                <img src="https://via.placeholder.com/260x180/0067c0/ffffff?text={{ urlencode($product->name) }}" alt="{{ $product->name }}">
+                            @endif
+                            <div class="product-title">{{ $product->name }}</div>
+                            <div class="product-price">{{ number_format($product->price, 0, '.', ' ') }} ₽</div>
+                            <div class="product-rating">
+                                @php $rating = $product->rating ?? 4.5; @endphp
+                                @for($i = 1; $i <= 5; $i++)
+                                    @if($i <= floor($rating))
+                                        <i class="fas fa-star"></i>
+                                    @elseif($i - 0.5 <= $rating)
+                                        <i class="fas fa-star-half-alt"></i>
+                                    @else
+                                        <i class="far fa-star"></i>
+                                    @endif
+                                @endfor
+                                <span>({{ $product->reviews_count ?? 0 }})</span>
+                            </div>
+                            {{-- TODO: Реализовать добавление в корзину --}}
+                            <button class="btn-add" data-product-id="{{ $product->id }}">
+                                <i class="fas fa-cart-plus"></i> В корзину
+                            </button>
+                        </div>
+                    @endforeach
                 </div>
             </div>
         </div>
@@ -217,14 +245,11 @@
     <section class="brands-section">
         <div class="win-container">
             <h2 class="brands-title">Популярные бренды</h2>
-            <div class="brands-grid">
-                <div class="brand-item glass">BOSCH</div>
-                <div class="brand-item glass">Makita</div>
-                <div class="brand-item glass">DeWALT</div>
-                <div class="brand-item glass">Metabo</div>
-                <div class="brand-item glass">Hitachi</div>
-                <div class="brand-item glass">Milwaukee</div>
-            </div>
+            @forelse($brands as $brand)
+                <div class="brand-item glass">{{ $brand->name }}</div>
+            @empty
+                <div class="brand-item glass">Бренды пока не добавлены</div>
+            @endforelse
         </div>
     </section>
 

@@ -10,7 +10,7 @@ class CatalogController extends Controller
 {
       public function index()
     {
-        // Получаем последние 4 товара
+        // Получаем последние 10 товара
         $latestProducts = Product::with('categories')
             ->where('active', true)
             ->latest()
