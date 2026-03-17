@@ -37,5 +37,15 @@
         <script src="{{ asset('js/contacts.js') }}"></script>
         <script src="{{ asset('js/products.js') }}"></script>
         <script src="{{ asset('js/delivery.js') }}"></script>
+        <script src="{{ asset('js/select-all.js') }}"></script>
+        <script src="{{ asset('js/product.js') }}"></script>
+        <script>
+            window.productData = {
+                id: {{ $product->id ?? 0 }},
+                name: '{{ $product->name ?? '' }}',
+                price: {{ $product->price ?? 0 }},
+                quantity: {{ $product->quantity ?? 0 }}
+            };
+    </script>
     </body>
 </html>

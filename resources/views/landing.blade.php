@@ -100,7 +100,7 @@
                             <div class="mt-auto">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="h5 mb-0 text-primary">{{ number_format($product->price, 0, '.', ' ') }} ₽</span>
-                                    <a href="/catalog/{{ $product->slug }}" class="btn btn-sm btn-outline-primary">Подробнее</a>
+                                    <a href="/product/{{ $product->slug }}" class="btn btn-sm btn-outline-primary">Подробнее</a>
                                 </div>
                                 @if($product->old_price)
                                     <small class="text-muted text-decoration-line-through">

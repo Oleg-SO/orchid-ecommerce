@@ -16,12 +16,33 @@ class ProductListLayout extends Table
     protected function columns(): array
     {
         return [
+            // ЕДИНСТВЕННАЯ колонка с чекбоксами
+            TD::make('checkbox', ' ')
+                ->render(function (Product $product) {
+                    return '<div style="display: flex; align-items: center; justify-content: center;">
+                        <input type="checkbox" name="selected_products[]" value="' . $product->id . '" class="product-checkbox" style="width: 16px; height: 16px;">
+                    </div>';
+                })
+                ->width('50px'),
+
+            TD::make('image', 'Фото')
+                ->width('100px')
+                ->render(function (Product $product) {
+                    $attachment = $product->attachment()->first();
+                    if ($attachment) {
+                        return '<img src="' . $attachment->url() . '" width="60" height="60" style="object-fit: cover; border-radius: 4px;">';
+                    }
+                    return '<div style="width:60px; height:60px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; border-radius:4px;">
+                        <span style="font-size:20px; color:#999;">📷</span>
+                    </div>';
+                }),
+
             TD::make('name', 'Название')
                 ->sort()
                 ->filter(),
 
             TD::make('price', 'Цена')
-                ->render(fn (Product $product) => number_format($product->price, 2) . ' ₽')
+                ->render(fn (Product $product) => number_format($product->price, 0, '.', ' ') . ' ₽')
                 ->sort(),
 
             TD::make('quantity', 'Количество')
@@ -32,15 +53,6 @@ class ProductListLayout extends Table
 
             TD::make('created_at', 'Создано')
                 ->sort(),
-            TD::make('image', 'Фото')
-                ->width('100px')
-                ->render(function (Product $product) {
-                    $attachment = $product->attachment()->first();
-                    if ($attachment) {
-                        return "<img src='{$attachment->url()}' width='50' height='50' style='object-fit: cover; border-radius: 4px;'>";
-                    }
-                    return '📷';
-                }),
 
             TD::make(__('Действия'))
                 ->align(TD::ALIGN_CENTER)
@@ -57,7 +69,8 @@ class ProductListLayout extends Table
                             ->confirm('Вы уверены?')
                             ->method('remove')
                             ->parameters(['id' => $product->id]),
-                    ])),
+                    ])
+                ),
         ];
     }
 }

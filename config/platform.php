@@ -132,7 +132,10 @@ return [
 
     'resource' => [
         'stylesheets' => [],
-        'scripts'     => [],
+        'scripts' => [
+        '/js/bulk-select.js',
+        '/js/bulk-select-categories.js',
+    ],
     ],
 
     /*

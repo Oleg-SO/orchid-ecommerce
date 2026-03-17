@@ -16,6 +16,15 @@ class CategoryListLayout extends Table
     protected function columns(): array
     {
         return [
+            // Чекбоксы для выбора категорий
+            TD::make('checkbox', ' ')
+                ->render(function (Category $category) {
+                    return '<div style="display: flex; align-items: center; justify-content: center;">
+                        <input type="checkbox" name="selected_categories[]" value="' . $category->id . '" class="category-checkbox" style="width: 16px; height: 16px;">
+                    </div>';
+                })
+                ->width('50px'),
+
             TD::make('name', 'Название')
                 ->render(function (Category $category) {
                     $depth = $category->depth ?? 0;
