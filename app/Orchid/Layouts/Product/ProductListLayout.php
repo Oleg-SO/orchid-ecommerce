@@ -16,7 +16,7 @@ class ProductListLayout extends Table
     protected function columns(): array
     {
         return [
-            // ЕДИНСТВЕННАЯ колонка с чекбоксами
+            // колонка с чекбоксами
             TD::make('checkbox', ' ')
                 ->render(function (Product $product) {
                     return '<div style="display: flex; align-items: center; justify-content: center;">

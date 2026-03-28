@@ -8,6 +8,7 @@ use App\Models\Specification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Closure;
+use Orchid\Attachment\Models\Attachment;
 
 class ImportExportService
 {
@@ -16,7 +17,7 @@ class ImportExportService
      */
     public function exportProducts(array $params = []): Closure
     {
-        $query = Product::with(['categories', 'specifications']);
+        $query = Product::with(['categories', 'specifications', 'attachments']);
         $products = $query->get();
         $headers = $this->buildHeaders($params);
 
@@ -57,7 +58,23 @@ class ImportExportService
             $headers[] = 'spec_values';
         }
 
+        if (!empty($params['with_images'])) {
+            $headers[] = 'image_paths';
+        }
+
         return $headers;
+    }
+
+    /**
+     * Получить пути ко всем изображениям товара
+     */
+    protected function getImagePaths($product): string
+    {
+        $images = [];
+        foreach ($product->attachments as $attachment) {
+            $images[] = $attachment->path . $attachment->name . '.' . $attachment->extension;
+        }
+        return implode('|', $images);
     }
 
     /**
@@ -85,6 +102,7 @@ class ImportExportService
                 'category_names' => $product->categories->pluck('name')->join(','),
                 'spec_names' => $product->specifications->pluck('name')->join(','),
                 'spec_values' => $product->specifications->pluck('value')->join(','),
+                'image_paths' => $this->getImagePaths($product),
                 default => '',
             };
         }
@@ -182,6 +200,128 @@ class ImportExportService
     }
 
     /**
+     * Импорт фото из локального пути
+     */
+    protected function importLocalImage($product, $imagePath)
+    {
+        $fullPath = storage_path("app/public/" . $imagePath);
+        
+        if (!file_exists($fullPath)) {
+            \Log::warning('Локальный файл не найден: ' . $imagePath);
+            return;
+        }
+        
+        $pathParts = explode('/', $imagePath);
+        $filename = end($pathParts);
+        $folder = $pathParts[count($pathParts) - 2] ?? '';
+        $name = pathinfo($filename, PATHINFO_FILENAME);
+        $ext = pathinfo($filename, PATHINFO_EXTENSION);
+        $mime = mime_content_type($fullPath);
+        $size = filesize($fullPath);
+        
+        $attachment = Attachment::create([
+            'name' => $name,
+            'original_name' => $filename,
+            'extension' => $ext,
+            'path' => ($folder ? 'products/' . $folder . '/' : 'products/'),
+            'mime' => $mime,
+            'size' => $size,
+            'disk' => 'public',
+            'group' => 'products',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        
+        DB::table('attachmentable')->insert([
+            'attachmentable_type' => 'App\Models\Product',
+            'attachmentable_id' => $product->id,
+            'attachment_id' => $attachment->id,
+        ]);
+        
+        \Log::info('Локальное фото привязано: ' . $imagePath . ' -> товар ID ' . $product->id);
+    }
+
+    /**
+     * Импорт фото из URL (скачивание)
+     */
+    protected function importImageFromUrl($product, $url)
+    {
+        try {
+            // Скачиваем фото
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            $imageContent = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            if ($httpCode !== 200 || $imageContent === false) {
+                \Log::warning('Не удалось скачать изображение: ' . $url . ' (HTTP: ' . $httpCode . ')');
+                return;
+            }
+            
+            // Определяем имя файла
+            $pathInfo = pathinfo(parse_url($url, PHP_URL_PATH));
+            $filename = $pathInfo['filename'] . '.' . ($pathInfo['extension'] ?? 'jpg');
+            $name = $pathInfo['filename'];
+            $ext = $pathInfo['extension'] ?? 'jpg';
+            
+            // Определяем mime тип
+            $mime = match($ext) {
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'webp' => 'image/webp',
+                default => 'image/jpeg',
+            };
+            
+            // Создаем папку по дате
+            $year = date('Y');
+            $month = date('m');
+            $day = date('d');
+            $folder = "products/{$year}/{$month}/{$day}";
+            $fullPath = storage_path("app/public/{$folder}");
+            
+            if (!file_exists($fullPath)) {
+                $oldUmask = umask(0);
+                mkdir($fullPath, 0777, true);
+                umask($oldUmask);
+            }
+            
+            // Сохраняем файл
+            $filePath = $fullPath . '/' . $filename;
+            file_put_contents($filePath, $imageContent);
+            
+            // Создаем запись в attachments
+            $attachment = Attachment::create([
+                'name' => $name,
+                'original_name' => $filename,
+                'extension' => $ext,
+                'path' => $folder . '/',
+                'mime' => $mime,
+                'size' => strlen($imageContent),
+                'disk' => 'public',
+                'group' => 'products',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            
+            // Привязываем фото к товару через таблицу attachmentable
+            DB::table('attachmentable')->insert([
+                'attachmentable_type' => 'App\Models\Product',
+                'attachmentable_id' => $product->id,
+                'attachment_id' => $attachment->id,
+            ]);
+            
+            \Log::info('Фото скачано и привязано: ' . $url . ' -> товар ID ' . $product->id);
+            
+        } catch (\Exception $e) {
+            \Log::warning('Ошибка скачивания фото: ' . $e->getMessage());
+        }
+    }
+    /**
      * Обработка одной строки товара
      */
     protected function importProductRow($data, array $options = [])
@@ -204,6 +344,7 @@ class ImportExportService
             'category_names' => !empty($data['category_names']) ? trim($data['category_names']) : null,
             'spec_names' => !empty($data['spec_names']) ? trim($data['spec_names']) : null,
             'spec_values' => !empty($data['spec_values']) ? trim($data['spec_values']) : null,
+            'image_paths' => !empty($data['image_paths']) ? trim($data['image_paths']) : null,
         ];
 
         // Валидация
@@ -314,6 +455,38 @@ class ImportExportService
             }
         }
 
+        // Обработка фото
+        if (!empty($normalized['image_paths'])) {
+            $imagePaths = explode('|', $normalized['image_paths']);
+            
+            \Log::info('Обработка фото для товара ID ' . $product->id . ': ' . $normalized['image_paths']);
+            
+            // Удаляем старые фото при обновлении
+            if ($product->exists && $product->attachments->count() > 0) {
+                foreach ($product->attachments as $oldImage) {
+                    $oldImage->delete();
+                }
+                \Log::info('Удалено старых фото: ' . count($product->attachments));
+            }
+            
+            // Добавляем новые фото
+            foreach ($imagePaths as $imagePath) {
+                $imagePath = trim($imagePath);
+                if (empty($imagePath)) continue;
+                
+                \Log::info('Обработка пути: ' . $imagePath);
+                
+                // Проверяем, является ли путь URL
+                if (filter_var($imagePath, FILTER_VALIDATE_URL)) {
+                    \Log::info('Это URL, скачиваем...');
+                    $this->importImageFromUrl($product, $imagePath);
+                } else {
+                    \Log::info('Это локальный путь');
+                    $this->importLocalImage($product, $imagePath);
+                }
+            }
+        }
+
         return $action;
     }
 
@@ -337,12 +510,12 @@ class ImportExportService
         $headers = [
             'name', 'slug', 'price', 'old_price', 'quantity', 'sku', 'article',
             'description', 'short_description', 'active', 'warranty', 'is_hit', 'is_new',
-            'category_names', 'spec_names', 'spec_values'
+            'category_names', 'spec_names', 'spec_values', 'image_paths'
         ];
 
         $example = [
-            'Дрель ударная BOSCH|drel-bosch|4990|5990|10|BOSCH-001|DB-100|Мощная дрель|Профессиональная дрель|1|3|1|0|Электроинструмент,BOSCH|Мощность,Обороты|1500 Вт,3000 об/мин',
-            'Шуруповерт Makita|shurup-makita|8990||15|MAK-002|SM-200|Аккумуляторный шуруповерт|Для дома и дачи|1|3|0|1|Электроинструмент,Makita|Аккумулятор,Крутящий момент|4 А·ч,60 Н·м',
+            'Дрель ударная BOSCH|drel-bosch|4990|5990|10|BOSCH-001|DB-100|Мощная дрель|Профессиональная дрель|1|3|1|0|Электроинструмент,BOSCH|Мощность,Обороты|1500 Вт,3000 об/мин|https://cdn.vseinstrumenti.ru/images/goods/stroitelnyj-instrument/dreli-elektricheskie/50358/560x504/188774609.jpg',
+            'Шуруповерт Makita|shurup-makita|8990||15|MAK-002|SM-200|Аккумуляторный шуруповерт|Для дома и дачи|1|3|0|1|Электроинструмент,Makita|Аккумулятор,Крутящий момент|4 А·ч,60 Н·м|https://cdn.vseinstrumenti.ru/images/goods/stroitelnyj-instrument/shurupoverty/964589/560x504/52439261.jpg',
         ];
 
         $callback = function() use ($headers, $example) {
