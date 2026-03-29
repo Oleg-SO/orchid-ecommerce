@@ -98,7 +98,7 @@ class ImportProductsScreen extends Screen
 
         // Получаем ID файла
         $attachmentId = $file[0];
-        
+
         // Ищем attachment в базе данных
         $attachment = \Orchid\Attachment\Models\Attachment::find($attachmentId);
 
@@ -109,7 +109,7 @@ class ImportProductsScreen extends Screen
 
         // Получаем путь к файлу (правильный способ)
         $filePath = storage_path('app/public/' . $attachment->physicalPath());
-        
+
         // Альтернативный вариант, если не работает:
         // $filePath = $attachment->getFullPath();
 
@@ -127,11 +127,12 @@ class ImportProductsScreen extends Screen
             });
 
             Alert::info(sprintf(
-                'Импорт завершен: всего %d, создано %d, обновлено %d, ошибок %d',
+                'Импорт завершен: всего %d, создано %d, обновлено %d, ошибок %d. Разделитель: "%s"',
                 $results['total'],
                 $results['created'],
                 $results['updated'],
-                count($results['errors'])
+                count($results['errors']),
+                $results['delimiter'] ?? '|'
             ));
 
             if (!empty($results['errors'])) {

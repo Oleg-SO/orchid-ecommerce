@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Closure;
 use Orchid\Attachment\Models\Attachment;
+use Illuminate\Support\Facades\Log;
 
 class ImportExportService
 {
@@ -111,6 +112,31 @@ class ImportExportService
     }
 
     /**
+     * Определить разделитель CSV файла
+     */
+    protected function detectDelimiter($filePath)
+    {
+        $handle = fopen($filePath, 'r');
+        $firstLine = fgets($handle);
+        fclose($handle);
+
+        $delimiters = [',', ';', '|', "\t", ':'];
+        $bestDelimiter = ',';
+        $maxCount = 0;
+
+        foreach ($delimiters as $delimiter) {
+            $count = substr_count($firstLine, $delimiter);
+            if ($count > $maxCount) {
+                $maxCount = $count;
+                $bestDelimiter = $delimiter;
+            }
+        }
+
+        Log::info('Определён разделитель: ' . $bestDelimiter);
+        return $bestDelimiter;
+    }
+
+    /**
      * Импорт товаров из CSV
      */
     public function importProducts($filePath, array $options = [], $callback = null)
@@ -119,53 +145,57 @@ class ImportExportService
             throw new \Exception('Файл не найден по пути: ' . $filePath);
         }
 
+        // Определяем разделитель
+        $delimiter = $this->detectDelimiter($filePath);
+
         $handle = fopen($filePath, 'r');
-        
+
         // Читаем BOM если есть
         $bom = fread($handle, 3);
         if ($bom !== chr(0xEF).chr(0xBB).chr(0xBF)) {
             rewind($handle);
         }
-        
-        // Читаем заголовки
-        $headers = fgetcsv($handle, 0, '|');
+
+        // Читаем заголовки с определённым разделителем
+        $headers = fgetcsv($handle, 0, $delimiter);
         if (!$headers) {
             throw new \Exception('Не удалось прочитать заголовки CSV');
         }
-        
+
         $required = ['name', 'price'];
         $missing = array_diff($required, $headers);
         if (!empty($missing)) {
             throw new \Exception('Отсутствуют обязательные колонки: ' . implode(', ', $missing));
         }
-        
+
         $results = [
             'total' => 0,
             'created' => 0,
             'updated' => 0,
             'errors' => [],
+            'delimiter' => $delimiter,
         ];
-        
+
         DB::beginTransaction();
-        
+
         try {
             $rowNumber = 1;
-            while (($row = fgetcsv($handle, 0, '|')) !== false) {
+            while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
                 $rowNumber++;
-                
+
                 // Пропускаем пустые строки
                 if (empty(array_filter($row))) {
                     continue;
                 }
-                
+
                 // Создаем ассоциативный массив
                 $data = [];
                 foreach ($headers as $index => $header) {
                     $data[$header] = $row[$index] ?? '';
                 }
-                
+
                 $results['total']++;
-                
+
                 try {
                     $action = $this->importProductRow($data, $options);
                     if ($action === 'created') {
@@ -173,29 +203,29 @@ class ImportExportService
                     } elseif ($action === 'updated') {
                         $results['updated']++;
                     }
-                    
+
                     if ($callback) {
                         call_user_func($callback, $rowNumber, $data);
                     }
-                    
+
                 } catch (\Exception $e) {
                     $results['errors'][] = "Строка {$rowNumber}: {$e->getMessage()}";
-                    
+
                     if ($callback) {
                         call_user_func($callback, $rowNumber, $data, $e->getMessage());
                     }
                 }
             }
-            
+
             DB::commit();
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
         }
-        
+
         fclose($handle);
-        
+
         return $results;
     }
 
@@ -205,12 +235,13 @@ class ImportExportService
     protected function importLocalImage($product, $imagePath)
     {
         $fullPath = storage_path("app/public/" . $imagePath);
-        
+
+        // Проверяем существование файла
         if (!file_exists($fullPath)) {
-            \Log::warning('Локальный файл не найден: ' . $imagePath);
+            Log::warning('Локальный файл не найден: ' . $imagePath);
             return;
         }
-        
+
         $pathParts = explode('/', $imagePath);
         $filename = end($pathParts);
         $folder = $pathParts[count($pathParts) - 2] ?? '';
@@ -218,7 +249,7 @@ class ImportExportService
         $ext = pathinfo($filename, PATHINFO_EXTENSION);
         $mime = mime_content_type($fullPath);
         $size = filesize($fullPath);
-        
+
         $attachment = Attachment::create([
             'name' => $name,
             'original_name' => $filename,
@@ -231,14 +262,14 @@ class ImportExportService
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        
+
         DB::table('attachmentable')->insert([
             'attachmentable_type' => 'App\Models\Product',
             'attachmentable_id' => $product->id,
             'attachment_id' => $attachment->id,
         ]);
-        
-        \Log::info('Локальное фото привязано: ' . $imagePath . ' -> товар ID ' . $product->id);
+
+        Log::info('Локальное фото привязано: ' . $imagePath);
     }
 
     /**
@@ -247,7 +278,7 @@ class ImportExportService
     protected function importImageFromUrl($product, $url)
     {
         try {
-            // Скачиваем фото
+            // Используем cURL для надежности
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
@@ -256,19 +287,19 @@ class ImportExportService
             $imageContent = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
-            
+
             if ($httpCode !== 200 || $imageContent === false) {
-                \Log::warning('Не удалось скачать изображение: ' . $url . ' (HTTP: ' . $httpCode . ')');
+                Log::warning('Не удалось скачать изображение: ' . $url . ' (HTTP: ' . $httpCode . ')');
                 return;
             }
-            
-            // Определяем имя файла
+
+            // Определяем имя файла из URL
             $pathInfo = pathinfo(parse_url($url, PHP_URL_PATH));
             $filename = $pathInfo['filename'] . '.' . ($pathInfo['extension'] ?? 'jpg');
             $name = $pathInfo['filename'];
             $ext = $pathInfo['extension'] ?? 'jpg';
-            
-            // Определяем mime тип
+
+            // Определяем mime тип из расширения
             $mime = match($ext) {
                 'jpg', 'jpeg' => 'image/jpeg',
                 'png' => 'image/png',
@@ -276,24 +307,25 @@ class ImportExportService
                 'webp' => 'image/webp',
                 default => 'image/jpeg',
             };
-            
+
             // Создаем папку по дате
             $year = date('Y');
             $month = date('m');
             $day = date('d');
             $folder = "products/{$year}/{$month}/{$day}";
             $fullPath = storage_path("app/public/{$folder}");
-            
+
+            // Создаем папку с правами
             if (!file_exists($fullPath)) {
                 $oldUmask = umask(0);
                 mkdir($fullPath, 0777, true);
                 umask($oldUmask);
             }
-            
+
             // Сохраняем файл
             $filePath = $fullPath . '/' . $filename;
             file_put_contents($filePath, $imageContent);
-            
+
             // Создаем запись в attachments
             $attachment = Attachment::create([
                 'name' => $name,
@@ -307,20 +339,20 @@ class ImportExportService
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-            
-            // Привязываем фото к товару через таблицу attachmentable
+
             DB::table('attachmentable')->insert([
                 'attachmentable_type' => 'App\Models\Product',
                 'attachmentable_id' => $product->id,
                 'attachment_id' => $attachment->id,
             ]);
-            
-            \Log::info('Фото скачано и привязано: ' . $url . ' -> товар ID ' . $product->id);
-            
+
+            Log::info('Фото скачано: ' . $url . ' -> товар ID ' . $product->id);
+
         } catch (\Exception $e) {
-            \Log::warning('Ошибка скачивания фото: ' . $e->getMessage());
+            Log::warning('Ошибка скачивания фото: ' . $e->getMessage());
         }
     }
+
     /**
      * Обработка одной строки товара
      */
@@ -349,15 +381,15 @@ class ImportExportService
 
         // Валидация
         $errors = [];
-        
+
         if (empty($normalized['name'])) {
             $errors[] = 'Название товара обязательно';
         }
-        
+
         if ($normalized['price'] <= 0) {
             $errors[] = 'Цена должна быть больше 0';
         }
-        
+
         if (!empty($errors)) {
             throw new \Exception(implode('; ', $errors));
         }
@@ -385,7 +417,17 @@ class ImportExportService
 
         // Поиск существующего товара
         $product = null;
-        
+
+        // Обработка дублирующегося SKU
+        if (!empty($normalized['sku'])) {
+            $existingSku = Product::where('sku', $normalized['sku'])->first();
+            if ($existingSku) {
+                // Если SKU уже существует, генерируем уникальный
+                $normalized['sku'] = $normalized['sku'] . '_' . Str::random(4);
+                Log::info('SKU изменён на уникальный: ' . $normalized['sku']);
+            }
+        }
+
         if ($matchBy === 'sku' && !empty($normalized['sku'])) {
             $product = Product::where('sku', $normalized['sku'])->first();
         }
@@ -400,7 +442,7 @@ class ImportExportService
         if ($product && $mode === 'create_only') {
             return 'skipped';
         }
-        
+
         if (!$product && $mode === 'update_only') {
             return 'skipped';
         }
@@ -418,17 +460,17 @@ class ImportExportService
         if (!empty($normalized['category_names'])) {
             $categoryNames = array_map('trim', explode(',', $normalized['category_names']));
             $categoryIds = [];
-            
+
             foreach ($categoryNames as $name) {
                 if (empty($name)) continue;
-                
+
                 $category = Category::firstOrCreate(
                     ['slug' => Str::slug($name)],
                     ['name' => $name, 'active' => true]
                 );
                 $categoryIds[] = $category->id;
             }
-            
+
             $product->categories()->sync($categoryIds);
         }
 
@@ -436,15 +478,15 @@ class ImportExportService
         if (!empty($normalized['spec_names']) && !empty($normalized['spec_values'])) {
             $specNames = array_map('trim', explode(',', $normalized['spec_names']));
             $specValues = array_map('trim', explode(',', $normalized['spec_values']));
-            
+
             if (count($specNames) === count($specValues)) {
                 // Удаляем старые характеристики
                 $product->specifications()->delete();
-                
+
                 // Добавляем новые
                 foreach ($specNames as $index => $name) {
                     if (empty($name)) continue;
-                    
+
                     Specification::create([
                         'product_id' => $product->id,
                         'name' => $name,
@@ -458,30 +500,30 @@ class ImportExportService
         // Обработка фото
         if (!empty($normalized['image_paths'])) {
             $imagePaths = explode('|', $normalized['image_paths']);
-            
-            \Log::info('Обработка фото для товара ID ' . $product->id . ': ' . $normalized['image_paths']);
-            
+
+            Log::info('Обработка фото для товара ID ' . $product->id . ': ' . $normalized['image_paths']);
+
             // Удаляем старые фото при обновлении
             if ($product->exists && $product->attachments->count() > 0) {
                 foreach ($product->attachments as $oldImage) {
                     $oldImage->delete();
                 }
-                \Log::info('Удалено старых фото: ' . count($product->attachments));
+                Log::info('Удалено старых фото: ' . count($product->attachments));
             }
-            
+
             // Добавляем новые фото
             foreach ($imagePaths as $imagePath) {
                 $imagePath = trim($imagePath);
                 if (empty($imagePath)) continue;
-                
-                \Log::info('Обработка пути: ' . $imagePath);
-                
+
+                Log::info('Обработка пути: ' . $imagePath);
+
                 // Проверяем, является ли путь URL
                 if (filter_var($imagePath, FILTER_VALIDATE_URL)) {
-                    \Log::info('Это URL, скачиваем...');
+                    Log::info('Это URL, скачиваем...');
                     $this->importImageFromUrl($product, $imagePath);
                 } else {
-                    \Log::info('Это локальный путь');
+                    Log::info('Это локальный путь');
                     $this->importLocalImage($product, $imagePath);
                 }
             }
@@ -497,7 +539,7 @@ class ImportExportService
     {
         if (is_bool($value)) return $value;
         if (is_numeric($value)) return (bool) $value;
-        
+
         $value = strtolower(trim($value));
         return in_array($value, ['1', 'true', 'yes', 'on', 'да']);
     }
@@ -516,6 +558,7 @@ class ImportExportService
         $example = [
             'Дрель ударная BOSCH|drel-bosch|4990|5990|10|BOSCH-001|DB-100|Мощная дрель|Профессиональная дрель|1|3|1|0|Электроинструмент,BOSCH|Мощность,Обороты|1500 Вт,3000 об/мин|https://cdn.vseinstrumenti.ru/images/goods/stroitelnyj-instrument/dreli-elektricheskie/50358/560x504/188774609.jpg',
             'Шуруповерт Makita|shurup-makita|8990||15|MAK-002|SM-200|Аккумуляторный шуруповерт|Для дома и дачи|1|3|0|1|Электроинструмент,Makita|Аккумулятор,Крутящий момент|4 А·ч,60 Н·м|https://cdn.vseinstrumenti.ru/images/goods/stroitelnyj-instrument/shurupoverty/964589/560x504/52439261.jpg',
+            'Лазерный уровень|laser-level|15900||5|LL-001||Профессиональный лазерный уровень|Самовыравнивающийся|1|2|1|0|Измерительные приборы|Дальность,Класс|20 м,2|https://cdn.vseinstrumenti.ru/images/goods/izmeritelnyj-instrument/lazernye-niveliry/190316/560x504/115475514.jpg',
         ];
 
         $callback = function() use ($headers, $example) {
