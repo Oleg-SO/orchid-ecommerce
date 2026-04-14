@@ -10,18 +10,24 @@ use Orchid\Screen\Fields\Select;
 use Orchid\Screen\Fields\Upload;
 use Orchid\Screen\Layouts\Rows;
 
-class CategoryEditLayout extends Rows
+class CategoryEditFormLayout extends Rows
 {
+    protected $parents;
+
+    public function __construct($parents = null)
+    {
+        $this->parents = $parents;
+    }
+
     protected function fields(): array
     {
-        // Получаем родительские категории из экрана
-        $parents = $this->getProperty('parents') ?? collect();
-
-        // Формируем массив опций
         $options = ['' => 'Корневая категория'];
-        foreach ($parents as $parent) {
-            $indent = str_repeat('— ', $parent->depth ?? 0);
-            $options[$parent->id] = $indent . $parent->name;
+
+        if ($this->parents) {
+            foreach ($this->parents as $parent) {
+                $indent = str_repeat('— ', $parent->depth ?? 0);
+                $options[$parent->id] = $indent . $parent->name;
+            }
         }
 
         return [
@@ -38,8 +44,7 @@ class CategoryEditLayout extends Rows
             Select::make('category.parent_id')
                 ->title('Родительская категория')
                 ->options($options)
-                ->empty('Корневая категория')
-                ->help('Выберите родительскую категорию. Нельзя выбрать текущую категорию или её подкатегории.'),
+                ->help('Выберите родительскую категорию.'),
 
             Quill::make('category.description')
                 ->title('Описание')

@@ -291,4 +291,32 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
 
     document.head.appendChild(style);
+
+     // Обработка сворачивания категорий
+    const toggles = document.querySelectorAll('.category-toggle');
+
+    toggles.forEach(toggle => {
+        toggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const targetId = this.dataset.target;
+            const target = document.getElementById(targetId);
+
+            if (target) {
+                if (target.style.display === 'none') {
+                    target.style.display = 'block';
+                    this.innerHTML = '▼';
+                    this.classList.remove('collapsed');
+                    this.classList.add('expanded');
+                } else {
+                    target.style.display = 'none';
+                    this.innerHTML = '▶';
+                    this.classList.remove('expanded');
+                    this.classList.add('collapsed');
+                }
+            }
+        });
+    });
 });
+

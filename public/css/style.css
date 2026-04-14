@@ -3772,3 +3772,52 @@ textarea.form-control {
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+
+/* Стили для ссылок категорий */
+.category-link {
+    display: block;
+    padding: 8px 12px;
+    color: #333;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border-radius: 6px;
+}
+
+.category-link:hover {
+    background-color: #f0f0f0;
+    color: #007bff;
+}
+
+.category-link.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.category-link .category-count {
+    font-size: 12px;
+    color: #888;
+    margin-left: 5px;
+}
+
+.category-link.active .category-count {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Отступы для подкатегорий */
+.category-item {
+    margin-bottom: 4px;
+}
+
+.category-toggle {
+    display: inline-block;
+    width: 18px;
+    cursor: pointer;
+    font-size: 10px;
+    color: #666;
+    margin-right: 5px;
+}
+
+.category-toggle:hover {
+    color: #007bff;
+}

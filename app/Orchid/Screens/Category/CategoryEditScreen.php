@@ -3,7 +3,7 @@
 namespace App\Orchid\Screens\Category;
 
 use App\Models\Category;
-use App\Orchid\Layouts\Category\CategoryEditLayout;
+use App\Orchid\Layouts\Category\CategoryEditFormLayout;
 use Illuminate\Http\Request;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Screen;
@@ -53,8 +53,16 @@ class CategoryEditScreen extends Screen
 
     public function layout(): iterable
     {
+        // Получаем доступные родительские категории
+        $availableParents = Category::defaultOrder();
+
+        if ($this->category->exists) {
+            $availableParents = $availableParents->whereNotDescendantOf($this->category)
+                                                 ->where('id', '!=', $this->category->id);
+        }
+
         return [
-            CategoryEditLayout::class
+            new CategoryEditFormLayout($availableParents->get()),
         ];
     }
 
@@ -67,12 +75,21 @@ class CategoryEditScreen extends Screen
 
         $data = $request->get('category');
 
-        // ВАЖНО: Правильная обработка active
+        // Правильная обработка active
         $data['active'] = isset($data['active']) && in_array($data['active'], ['value', 'on', '1', 1, true], true);
 
         // Обработка parent_id
         if (empty($data['parent_id'])) {
             $data['parent_id'] = null;
+        }
+
+        // Дополнительная проверка: нельзя установить родителя, который является потомком
+        if (!empty($data['parent_id']) && $category->exists) {
+            $parentCategory = Category::find($data['parent_id']);
+            if ($parentCategory && $parentCategory->isDescendantOf($category)) {
+                Alert::error('Нельзя сделать потомка родителем текущей категории');
+                return redirect()->back();
+            }
         }
 
         $category->fill($data)->save();

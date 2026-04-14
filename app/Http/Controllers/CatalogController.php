@@ -8,31 +8,63 @@ use Illuminate\Http\Request;
 
 class CatalogController extends Controller
 {
-      public function index()
+    public function index(Request $request)
     {
-        // Получаем последние 10 товара
-        $latestProducts = Product::with('categories')
-            ->where('active', true)
-            ->latest()
-            ->take(10)
-            ->get();
+        $query = Product::with('categories')->where('active', true);
 
-        // Получаем популярные категории (первые 4)
-        $popularCategories = Category::where('active', true)
-            ->withCount('products')
-            ->having('products_count', '>', 0)
-            ->take(4)
-            ->get();
-
-        // Если нет категорий с товарами, покажем первые 4 категории
-        if ($popularCategories->isEmpty()) {
-            $popularCategories = Category::where('active', true)
-                ->take(4)
-                ->get();
+        // Фильтр по категориям
+        if ($request->has('category')) {
+            $categorySlugs = (array) $request->input('category');
+            $query->whereHas('categories', function($q) use ($categorySlugs) {
+                $q->whereIn('slug', $categorySlugs);
+            });
         }
 
-        return view('catalog', compact('latestProducts', 'popularCategories'));
-    }
+        // Фильтр по цене
+        if ($request->has('min_price')) {
+            $query->where('price', '>=', $request->min_price);
+        }
+        if ($request->has('max_price')) {
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        // Фильтр по наличию
+        if ($request->has('in_stock')) {
+            $query->where('quantity', '>', 0);
+        }
+
+        // Сортировка
+        $sort = $request->input('sort', 'newest');
+        switch ($sort) {
+            case 'price_asc':
+                $query->orderBy('price', 'asc');
+                break;
+            case 'price_desc':
+                $query->orderBy('price', 'desc');
+                break;
+            case 'name_asc':
+                $query->orderBy('name', 'asc');
+                break;
+            case 'name_desc':
+                $query->orderBy('name', 'desc');
+                break;
+            case 'popular':
+                $query->orderBy('views', 'desc');
+                break;
+            default:
+                $query->latest();
+        }
+
+        $latestProducts = $query->paginate(12);
+
+        $categories = Category::where('active', true)
+                ->withCount('products')
+                ->defaultOrder()  // сортировка для вложенных категорий
+                ->withDepth()     // получаем уровень вложенности
+                ->get();
+
+            return view('catalog', compact('latestProducts', 'categories'));
+        }
 
     /**
      * Страница конкретной категории

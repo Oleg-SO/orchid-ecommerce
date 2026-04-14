@@ -17,7 +17,8 @@ class Category extends Model
         'slug',
         'description',
         'image',
-        'active'
+        'active',
+        'parent_id'  // ← ДОБАВИТЬ ЭТО!
     ];
 
     protected $allowedFilters = [

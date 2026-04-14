@@ -55,24 +55,71 @@
                         </div>
 
                         {{-- ФИЛЬТР ПО КАТЕГОРИЯМ --}}
-                        @if(isset($popularCategories) && $popularCategories->count() > 0)
+                        @if(isset($categories) && $categories->count() > 0)
                         <div class="filter-section">
                             <h4 class="filter-section-title">
                                 Категории
                                 <i class="fas fa-chevron-down"></i>
                             </h4>
                             <div class="filter-section-content">
-                                <div class="categories-list" id="categoriesList">
-                                    @foreach($popularCategories as $category)
-                                        <label class="category-checkbox glass-option">
-                                            <input type="checkbox"
-                                                   name="category[]"
-                                                   value="{{ $category->slug ?? '' }}"
-                                                   {{ in_array($category->slug ?? '', request()->input('category', [])) ? 'checked' : '' }}>
-                                            <span class="checkmark"></span>
-                                            <span class="category-name">{{ $category->name ?? 'Категория' }}</span>
-                                            <span class="category-count">{{ $category->products_count ?? 0 }}</span>
-                                        </label>
+                                <div class="categories-list">
+                                    @foreach($categories as $category)
+                                        @php
+                                            $hasProducts = ($category->products_count ?? 0) > 0;
+                                            $hasChildren = $category->children->count() > 0;
+                                            $isActive = in_array($category->slug, request()->input('category', []));
+                                        @endphp
+
+                                        <div class="category-item" style="margin-left: {{ $category->depth * 20 }}px;">
+                                            @if($hasChildren && !$hasProducts)
+                                                {{-- Только подкатегории, без товаров --}}
+                                                <span class="category-toggle collapsed" data-target="sub-{{ $category->id }}">
+                                                    ▶
+                                                </span>
+                                                <span class="category-name">{{ $category->name }}</span>
+                                                <span class="category-count">({{ $category->products_count ?? 0 }})</span>
+
+                                                {{-- Подкатегории (скрыты по умолчанию) --}}
+                                                <div class="subcategories" id="sub-{{ $category->id }}" style="display: none; margin-left: 20px;">
+                                                    @foreach($category->children as $child)
+                                                        <div class="category-item">
+                                                            <a href="{{ route('catalog', ['category' => [$child->slug]]) }}"
+                                                            class="category-link {{ in_array($child->slug, request()->input('category', [])) ? 'active' : '' }}">
+                                                                {{ $child->name }}
+                                                                <span class="category-count">({{ $child->products_count ?? 0 }})</span>
+                                                            </a>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                {{-- Есть товары (с подкатегориями или без) --}}
+                                                @if($hasChildren)
+                                                    <span class="category-toggle collapsed" data-target="sub-{{ $category->id }}">
+                                                        ▶
+                                                    </span>
+                                                @endif
+
+                                                <a href="{{ route('catalog', ['category' => [$category->slug]]) }}"
+                                                class="category-link {{ $isActive ? 'active' : '' }}">
+                                                    {{ $category->name }}
+                                                    <span class="category-count">({{ $category->products_count ?? 0 }})</span>
+                                                </a>
+
+                                                @if($hasChildren)
+                                                    <div class="subcategories" id="sub-{{ $category->id }}" style="display: none; margin-left: 20px;">
+                                                        @foreach($category->children as $child)
+                                                            <div class="category-item">
+                                                                <a href="{{ route('catalog', ['category' => [$child->slug]]) }}"
+                                                                class="category-link {{ in_array($child->slug, request()->input('category', [])) ? 'active' : '' }}">
+                                                                    {{ $child->name }}
+                                                                    <span class="category-count">({{ $child->products_count ?? 0 }})</span>
+                                                                </a>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            @endif
+                                        </div>
                                     @endforeach
                                 </div>
                             </div>
@@ -334,7 +381,7 @@
                         {{-- ПАГИНАЦИЯ --}}
                         @if(method_exists($latestProducts, 'links'))
                             <div class="pagination-section">
-                                {{ $latestProducts->withQueryString()->links('vendor.pagination.bootstrap-4') }}
+                                {{ $latestProducts->withQueryString()->links('pagination::bootstrap-4') }}
                             </div>
                         @endif
 
