@@ -5,12 +5,29 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Laravel\Scout\EngineManager;
 
 class CatalogController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with('categories')->where('active', true);
+        // ПОИСК через Scout
+        if ($request->filled('search')) {
+            $searchTerm = $request->input('search');
+
+            // Выполняем поиск через Scout
+            $productIds = Product::search($searchTerm)
+                ->where('active', true)
+                ->get()
+                ->pluck('id');
+
+            // Строим запрос для найденных ID
+            $query = Product::with('categories')
+                ->whereIn('id', $productIds)
+                ->where('active', true);
+        } else {
+            $query = Product::with('categories')->where('active', true);
+        }
 
         // Фильтр по категориям
         if ($request->has('category')) {
@@ -21,11 +38,11 @@ class CatalogController extends Controller
         }
 
         // Фильтр по цене
-        if ($request->has('min_price')) {
-            $query->where('price', '>=', $request->min_price);
+        if ($request->filled('min_price')) {
+            $query->where('price', '>=', (float) $request->min_price);
         }
-        if ($request->has('max_price')) {
-            $query->where('price', '<=', $request->max_price);
+        if ($request->filled('max_price')) {
+            $query->where('price', '<=', (float) $request->max_price);
         }
 
         // Фильтр по наличию
@@ -52,19 +69,19 @@ class CatalogController extends Controller
                 $query->orderBy('views', 'desc');
                 break;
             default:
-                $query->latest();
+                $query->latest('id');
         }
 
-        $latestProducts = $query->paginate(12);
+        $latestProducts = $query->paginate(12)->appends($request->all())->onEachSide(1);
 
         $categories = Category::where('active', true)
-                ->withCount('products')
-                ->defaultOrder()  // сортировка для вложенных категорий
-                ->withDepth()     // получаем уровень вложенности
-                ->get();
+            ->withCount('products')
+            ->defaultOrder()
+            ->withDepth()
+            ->get();
 
-            return view('catalog', compact('latestProducts', 'categories'));
-        }
+        return view('catalog', compact('latestProducts', 'categories'));
+    }
 
     /**
      * Страница конкретной категории

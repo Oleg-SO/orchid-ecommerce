@@ -18,8 +18,8 @@
 
     {{-- Основные стили --}}
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/catalog.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/about.css') }}">
+    {{-- <link rel="stylesheet" href="{{ asset('css/catalog.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/about.css') }}"> --}}
 </head>
     <body>
 

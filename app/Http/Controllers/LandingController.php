@@ -15,7 +15,7 @@ class LandingController extends Controller
         $latestProducts = Product::with('categories')
             ->where('active', true)
             ->latest()
-            ->take(10)
+            ->take(8)
             ->get();
 
         // Получаем товары для слайдера "Хиты продаж"

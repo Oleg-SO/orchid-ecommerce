@@ -9,9 +9,10 @@
         "php": "^8.2",
         "kalnoy/nestedset": "^6.0",
         "laravel/framework": "^12.0",
+        "laravel/scout": "^10.25",
         "laravel/tinker": "^2.10.1",
-        "orchid/platform": "14.51",
-        "maatwebsite/excel": "^3.1"
+        "maatwebsite/excel": "^3.1",
+        "orchid/platform": "14.51"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -71,7 +72,9 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
-        }
+        },
+        "disable-tls": false,
+        "secure-http": true
     },
     "minimum-stability": "stable",
     "prefer-stable": true

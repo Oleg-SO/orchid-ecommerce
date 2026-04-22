@@ -60,10 +60,10 @@
                     <button class="filter-btn">Крепеж</button>
                 </div>
                 <div class="search-input-wrapper">
-                    <i class="fas fa-search"></i>
+                    <i class="fas fa-search search-icon"></i>
                     <input type="text" placeholder="Найди свой инструмент...">
-                    <button class="btn-search">Найти</button>
                 </div>
+                <button class="btn-search">Найти</button>
             </div>
         </div>
     </section>

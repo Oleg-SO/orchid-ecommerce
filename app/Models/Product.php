@@ -7,10 +7,11 @@ use Orchid\Attachment\Attachable;
 use Orchid\Attachment\Models\Attachment;
 use Orchid\Filters\Filterable;
 use Orchid\Screen\AsSource;
+use Laravel\Scout\Searchable;
 
 class Product extends Model
 {
-    use AsSource, Filterable, Attachable;
+    use AsSource, Filterable, Attachable, Searchable;
 
     protected $fillable = [
         'name',
@@ -301,4 +302,19 @@ class Product extends Model
     {
         return $this->hasMany(Specification::class)->orderBy('sort_order');
     }
+
+    public function toSearchableArray()
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'slug' => $this->slug,
+            'description' => strip_tags($this->description ?? ''),
+            'short_description' => $this->short_description,
+            'sku' => $this->sku,
+            'article' => $this->article,
+            'price' => $this->price,
+            'active' => $this->active,
+        ];
     }
+}
